@@ -14,7 +14,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(); 
-    app.UseDeveloperExceptionPage();
+    app.UseDeveloperExceptionPage(); //estamos usando-o apenas no ambiente de desenvolvimento, para que essas informações úteis, porém potencialmente prejudiciais, estejam disponíveis somente para o desenvolvedor
 }
 else { 
     app.UseExceptionHandler("/error"); 
@@ -24,6 +24,8 @@ else {
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.MapGet("/error", () => Results.Problem());
 
 app.MapControllers();
 
