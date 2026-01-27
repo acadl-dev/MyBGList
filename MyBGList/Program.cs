@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Cors;
 using MyBGList;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,8 +12,24 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 
+builder.Services.AddCors(options => {
+
+    options.AddDefaultPolicy(cfg => {
+        cfg.WithOrigins(builder.Configuration["AllowedOrigins"]);
+        cfg.AllowAnyHeader();
+        cfg.AllowAnyMethod();
+    });
+
+    options.AddPolicy(name: "AnyOrigin",
+        cfg => {
+            cfg.AllowAnyOrigin();
+            cfg.AllowAnyHeader();
+            cfg.AllowAnyMethod();
+        });
+});
+
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -24,16 +41,17 @@ if (app.Configuration.GetValue<bool>("UseDeveloperExceptionPage"))
 else
     app.UseExceptionHandler("/error");
 
-
-
-
 app.UseHttpsRedirection();
+//app.UseCors();
 
 app.UseAuthorization();
 
-app.MapGet("/error", () => Results.Problem()); //Minimal API, poderia ser substituido por um controller (os Controllers são mais adequados para tarefas complexas)
-app.MapGet("/error/test", () => {throw new Exception("test"); }) ;
-app.MapGet("/BoardGames", () => new[] {
+
+// Quando desejamos flexibilizar a política de mesma origem para todas as origens. Abordagem pode ser aceitável para o /error.e rotas /error/test, atualmente gerenciado pelas APIs mínimas.
+app.MapGet("/error", [EnableCors("AnyOrigin")] () => Results.Problem()); //Minimal API, poderia ser substituido por um controller (os Controllers são mais adequados para tarefas complexas)
+
+app.MapGet("/error/test", [EnableCors("AnyOrigin")] () => { throw new Exception("test"); });
+/* app.MapGet("/BoardGames", () => new[] {
     new BoardGame() {
         Id = 1,
         Name = "Axis & Allies",
@@ -50,6 +68,9 @@ app.MapGet("/BoardGames", () => new[] {
         Year = 2016
     }
 });
+
+ O comportamento mínimo do nosso BoardGamesController pode ser facilmente tratado pela API Minimal com algumas linhas de código. 
+Aqui está um trecho de código que podemos colocar no arquivo Program.cs para obter a mesma saída do método de ação Get() */
 
 app.MapControllers();
 
