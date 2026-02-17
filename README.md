@@ -74,7 +74,7 @@ Durante o desenvolvimento, foram aplicados:
 
 ```bash
 # Clonar o repositório
-git clone https://github.com/seu-usuario/mybglist-api.git
+git clone https://github.com/acadl-dev/MyBGList.git
 
 # Entrar na pasta do projeto
 cd mybglist-api
@@ -87,3 +87,8 @@ dotnet ef database update
 
 # Executar a aplicação
 dotnet run
+
+
+Acesse no navegador:
+https://localhost:{porta}/swagger/index.html
+
