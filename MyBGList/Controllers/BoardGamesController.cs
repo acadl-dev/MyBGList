@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MyBGList.DTO;
 using MyBGList.Models;
 using System.Linq.Dynamic.Core;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using MyBGList.Attributes;
 
 
 
@@ -30,33 +30,28 @@ namespace MyBGList.Controllers
         //Substituímos o valor de retorno anterior do IEnumerable<BoardGame> por um novo valor de retorno do RestDTO<BoardGame[]> ,
         //que é o que vamos retornar agora.
         public async Task<RestDTO<BoardGame[]>> Get(
-            //Inserindo a paginação na consulta, utilizando os parâmetros pageIndex e pageSize, que são opcionais e possuem valores padrão de 0 e 10, respectivamente.
-            int pageIndex = 0,
-            int pageSize = 10,
-            string? sortColumn = "Name", 
-            string? sortOrder = "ASC",
-            string? filterQuery = null)
+            [FromQuery] RequestDTO<BoardGameDTO> input)
         {
             var query = _context.BoardGames.AsQueryable();
-            if (!string.IsNullOrEmpty(filterQuery))                     
-                query = query.Where(b => b.Name.Contains(filterQuery));
+            if (!string.IsNullOrEmpty(input.FilterQuery))                     
+                query = query.Where(b => b.Name.Contains(input.FilterQuery));
             var recordCount = await query.CountAsync();
 
             query = query
-                .OrderBy($"{sortColumn} {sortOrder}")
-                .Skip(pageIndex * pageSize)
-                .Take(pageSize);
+                .OrderBy($"{input.SortColumn} {input.SortOrder}")
+                .Skip(input.PageIndex * input.PageSize)
+                .Take(input.PageSize);
             //Substituiu o tipo anônimo anterior, que continha apenas os dados, com o novo tipo RestDTO, que contém os dados e os links descritivos.
             return new RestDTO<BoardGame[]>()
             {
                 Data = await query.ToArrayAsync(),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
+                PageIndex = input.PageIndex,
+                PageSize = input.PageSize,
                 RecordCount = recordCount,
                 Links = new List<LinkDTO> {
                     new LinkDTO(
                         Url.Action(null, "BoardGames",
-                        new { pageIndex, pageSize },
+                        new { input.PageIndex, input.PageSize },
                             null, Request.Scheme)!,
                         "self",
                         "GET"),

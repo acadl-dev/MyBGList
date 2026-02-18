@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MyBGList;
 using MyBGList.Models;
+using MyBGList.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,16 +24,32 @@ builder.Services.AddCors(options => {
 });
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options => {
+    options.ModelBindingMessageProvider.SetValueIsInvalidAccessor(
+        (x) => $"The value '{x}' is invalid.");
+    options.ModelBindingMessageProvider.SetValueMustBeANumberAccessor(
+        (x) => $"The field {x} must be a number.");
+    options.ModelBindingMessageProvider.SetAttemptedValueIsInvalidAccessor(
+        (x, y) => $"The value '{x}' is not valid for {y}.");
+    options.ModelBindingMessageProvider.SetMissingKeyOrValueAccessor(
+        () => $"A value is required.");
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options => {
+    options.ParameterFilter<SortColumnFilter>();    
+    options.ParameterFilter<SortOrderFilter>();     
+});
 
 // DI do DbContext, usando a string de conexão definida no appsettings.json. O método UseSqlServer é específico para o provedor de banco de dados SQL Server, e é necessário ter o pacote Microsoft.EntityFrameworkCore.SqlServer instalado para usá-lo.
 builder.Services.AddDbContext<MyBGlistDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"))
     );
+
+// Código substituído pelo atributo [ManualValidationFilter] 
+// builder.Services.Configure<ApiBehaviorOptions>(options =>
+//    options.SuppressModelStateInvalidFilter = true);
 
 var app = builder.Build();
 
@@ -58,10 +75,24 @@ app.UseAuthorization();
 
 
 // Quando desejamos flexibilizar a política de mesma origem para todas as origens. Abordagem pode ser aceitável para o /error.e rotas /error/test, atualmente gerenciado pelas APIs mínimas.
-app.MapGet("/error", 
+// Minimal API
+app.MapGet("/error",
     [EnableCors("AnyOrigin")]
-    [ResponseCache(NoStore = true)] () => 
-    Results.Problem()); //Minimal API, poderia ser substituido por um controller (os Controllers são mais adequados para tarefas complexas)
+[ResponseCache(NoStore = true)] (HttpContext context) =>
+    {
+        var exceptionHandler =
+            context.Features.Get<IExceptionHandlerPathFeature>();
+
+        var details = new ProblemDetails();
+        details.Detail = exceptionHandler?.Error.Message;
+        details.Extensions["traceId"] =
+            System.Diagnostics.Activity.Current?.Id
+              ?? context.TraceIdentifier;
+        details.Type =
+            "https://tools.ietf.org/html/rfc7231#section-6.6.1";
+        details.Status = StatusCodes.Status500InternalServerError;
+        return Results.Problem(details);
+    }); //Minimal API, poderia ser substituido por um controller (os Controllers são mais adequados para tarefas complexas)
 
 app.MapGet("/error/test", 
     [EnableCors("AnyOrigin")]
